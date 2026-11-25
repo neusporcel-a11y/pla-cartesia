@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pla Cartesià Interactiu · MAP1 L4</title>
+    <!-- Carreguem Tailwind CSS per a un disseny modern, net i totalment adaptatiu -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter per a una llegibilitat òptima en nombres i expressions matemàtiques -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        /* Evitem selecció accidental de text en interactuar ràpidament amb el canvas */
+        canvas {
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        /* Animació suau per a les targetes de retroacció */
+        @keyframes popIn {
+            0% { opacity: 0; transform: translateY(6px) scale(0.98); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-pop {
+            animation: popIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        /* Amaguem les fletxes per defecte dels inputs numèrics per a un aspecte més net */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Capçalera institucional / educativa -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm font-bold text-lg">
+                    (x,y)
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                            MAP1 L4 · Coneixements previs
+                        </span>
+                    </div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+                        El Pla Cartesià i Coordenades
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Barra d'estadístiques i ratxa en temps real -->
+            <div class="flex items-center gap-2 sm:gap-4 text-sm">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 flex items-center gap-2" title="Encerts totals">
+                    <span class="text-emerald-600 font-bold text-base">✓</span>
+                    <div>
+                        <span class="text-slate-500 text-xs block leading-none">Encerts</span>
+                        <span id="stat-correct" class="font-bold text-slate-800">0</span><span id="stat-total" class="text-slate-400 text-xs">/0</span>
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 flex items-center gap-2" title="Ratxa d'encerts consecutius">
+                    <span class="text-amber-500 text-base">🔥</span>
+                    <div>
+                        <span class="text-amber-700/80 text-xs block leading-none">Ratxa</span>
+                        <span id="stat-streak" class="font-bold text-amber-900">0</span>
+                    </div>
+                </div>
+
+                <button id="btn-reset-stats" class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors" title="Reinicia el marcador">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contingut Principal -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Columna Esquerra: Pla Cartesià Interactiu (7 columnes en escriptori) -->
+            <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-5 flex flex-col">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                        <span class="text-sm font-semibold text-slate-700">Pla de coordenades</span>
+                        <span id="cursor-coords-badge" class="text-xs font-mono bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg border border-slate-200">
+                            Cursor: (—, —)
+                        </span>
+                    </div>
+
+                    <!-- Commutador per mostrar/amagar noms dels quadrants -->
+                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-600 select-none bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
+                        <input type="checkbox" id="toggle-quadrants" class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                        <span>Mostra quadrants (I–IV)</span>
+                    </label>
+                </div>
+
+                <!-- Contenidor quadrat responsive per al Canvas -->
+                <div id="canvas-wrapper" class="relative w-full aspect-square max-h-[600px] mx-auto bg-slate-50/50 rounded-xl overflow-hidden border border-slate-200">
+                    <canvas id="cartesian-canvas" class="w-full h-full block cursor-crosshair"></canvas>
+                </div>
+
+                <p class="text-xs text-slate-500 mt-2.5 text-center sm:text-left flex items-center justify-between flex-wrap gap-2">
+                    <span>💡 <strong>Consell:</strong> L'eix horitzontal (X) és el d'<em>abscisses</em> i el vertical (Y) el d'<em>ordenades</em>.</span>
+                    <span class="text-slate-400">Escala: 1 quadre = 1 unitat</span>
+                </p>
+            </div>
+
+            <!-- Columna Dreta: Controls, Repte Actual i Guia Visual (5 columnes en escriptori) -->
+            <div class="lg:col-span-5 flex flex-col gap-5">
+
+                <!-- Selector de Mode i Dificultat -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                            1. Tria el mode de pràctica
+                        </label>
+                        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                            <button id="mode-place-btn" class="py-2.5 px-3 rounded-lg text-sm font-semibold transition-all bg-white text-indigo-700 shadow-sm">
+                                📍 Col·locar el punt
+                            </button>
+                            <button id="mode-read-btn" class="py-2.5 px-3 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900">
+                                🔍 Llegir coordenades
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                            2. Àmbit del pla
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="diff-q1-btn" class="py-2 px-3 rounded-xl text-xs sm:text-sm font-medium border transition-all border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1.5">
+                                <span>Només 1r Quadrant</span>
+                                <span class="text-[11px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">[0, 10]</span>
+                            </button>
+                            <button id="diff-all-btn" class="py-2 px-3 rounded-xl text-xs sm:text-sm font-medium border transition-all border-indigo-600 bg-indigo-50/70 text-indigo-700 flex items-center justify-center gap-1.5">
+                                <span>Tots els quadrants</span>
+                                <span class="text-[11px] bg-indigo-100 px-1.5 py-0.5 rounded text-indigo-700">[-10, 10]</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Targeta d'Activitat / Exercici Actual -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 relative overflow-hidden">
+                    <!-- Barra superior de progrés de meta (p. ex. 10 encerts) -->
+                    <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+                        <span class="font-medium">Progrés de la sessió (objectiu: 10 encerts)</span>
+                        <span id="progress-label" class="font-bold text-indigo-600">0%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-5">
+                        <div id="progress-bar" class="h-full bg-indigo-600 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+
+                    <!-- ENUNCIAT MODE 1: Col·locar el punt -->
+                    <div id="panel-mode-place">
+                        <span class="inline-block text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md mb-2">
+                            Exercici de representació
+                        </span>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-800 mb-3">
+                            Fes clic al pla cartesià per situar el punt:
+                        </h2>
+
+                        <div class="bg-gradient-to-br from-indigo-50 to-slate-50 border border-indigo-100 rounded-2xl p-4 text-center mb-4">
+                            <div id="target-point-display" class="text-3xl sm:text-4xl font-extrabold text-indigo-700 tracking-tight font-mono">
+                                P(3, -4)
+                            </div>
+                            <p id="selected-preview-text" class="text-xs sm:text-sm text-slate-600 mt-2">
+                                Encara no has marcat cap punt al pla.
+                            </p>
+                        </div>
+
+                        <div class="flex gap-2.5">
+                            <button id="btn-check-place" disabled class="flex-1 py-3 px-4 rounded-xl font-semibold text-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
+                                Comprova la posició
+                            </button>
+                            <button id="btn-next-place" class="hidden flex-1 py-3 px-4 rounded-xl font-semibold text-sm text-white bg-slate-800 hover:bg-slate-900 transition-all shadow-sm">
+                                Següent punt →
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ENUNCIAT MODE 2: Llegir les coordenades -->
+                    <div id="panel-mode-read" class="hidden">
+                        <span class="inline-block text-xs font-semibold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-md mb-2">
+                            Exercici d'identificació
+                        </span>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-800 mb-3">
+                            Escriu les coordenades del punt <span id="read-point-letter" class="text-purple-700 font-mono">A</span> marcat al pla:
+                        </h2>
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4">
+                            <div class="flex items-center justify-center gap-2 sm:gap-3 text-2xl font-bold font-mono text-slate-700">
+                                <span id="read-point-prefix" class="text-purple-700">A</span>
+                                <span>(</span>
+                                <div class="flex flex-col items-center">
+                                    <input type="number" id="input-x" step="1" min="-10" max="10" placeholder="x"
+                                        class="w-16 sm:w-20 h-12 text-center text-xl font-bold bg-white border-2 border-slate-300 rounded-xl focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 outline-none transition-all">
+                                    <span class="text-[11px] font-sans font-medium text-slate-400 mt-1">Abscissa (X)</span>
+                                </div>
+                                <span>,</span>
+                                <div class="flex flex-col items-center">
+                                    <input type="number" id="input-y" step="1" min="-10" max="10" placeholder="y"
+                                        class="w-16 sm:w-20 h-12 text-center text-xl font-bold bg-white border-2 border-slate-300 rounded-xl focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 outline-none transition-all">
+                                    <span class="text-[11px] font-sans font-medium text-slate-400 mt-1">Ordenada (Y)</span>
+                                </div>
+                                <span>)</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2.5">
+                            <button id="btn-check-read" class="flex-1 py-3 px-4 rounded-xl font-semibold text-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-sm">
+                                Comprova les coordenades
+                            </button>
+                            <button id="btn-next-read" class="hidden flex-1 py-3 px-4 rounded-xl font-semibold text-sm text-white bg-slate-800 hover:bg-slate-900 transition-all shadow-sm">
+                                Següent punt →
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Zona de Retroacció Immediata -->
+                    <div id="feedback-box" class="hidden mt-4 p-4 rounded-xl border text-sm animate-pop">
+                        <div class="flex items-start gap-3">
+                            <div id="feedback-icon" class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 font-bold text-base mt-0.5"></div>
+                            <div class="flex-1">
+                                <h3 id="feedback-title" class="font-bold text-base"></h3>
+                                <p id="feedback-desc" class="mt-1 leading-relaxed"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guia Visual Desplegable -->
+                <details class="bg-white rounded-2xl border border-slate-200 shadow-sm group" open>
+                    <summary class="p-4 sm:px-5 cursor-pointer flex items-center justify-between font-semibold text-sm text-slate-800 select-none list-none">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold">?</span>
+                            <span>Com funciona un parell ordenat (x, y)?</span>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-transform duration-200 group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </summary>
+                    <div class="px-4 sm:px-5 pb-5 pt-1 text-xs sm:text-sm text-slate-600 border-t border-slate-100 space-y-3">
+                        <p>
+                            Un punt al pla s'escriu sempre com <strong class="font-mono text-slate-900">P(x, y)</strong>, seguint l'ordre alfabètic:
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div class="bg-blue-50/70 border border-blue-100 rounded-xl p-3">
+                                <div class="font-bold text-blue-900 mb-1">1r pas: Coordenada X</div>
+                                <p class="text-xs text-blue-800 leading-relaxed">
+                                    Des de l'origen <strong>(0,0)</strong>, ens movem en <strong>horitzontal</strong> (eix d'abscisses):
+                                    <br>• Positiu (+): cap a la <strong>dreta</strong> →
+                                    <br>• Negatiu (−): cap a l'<strong>esquerra</strong> ←
+                                </p>
+                            </div>
+                            <div class="bg-emerald-50/70 border border-emerald-100 rounded-xl p-3">
+                                <div class="font-bold text-emerald-900 mb-1">2n pas: Coordenada Y</div>
+                                <p class="text-xs text-emerald-800 leading-relaxed">
+                                    Des d'allà, pugem o baixem en <strong>vertical</strong> (eix d'ordenades):
+                                    <br>• Positiu (+): cap <strong>amunt</strong> ↑
+                                    <br>• Negatiu (−): cap <strong>avall</strong> ↓
+                                </p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-2.5 text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1 justify-center border border-slate-100">
+                            <span><strong>1r Q:</strong> (+, +)</span>
+                            <span><strong>2n Q:</strong> (−, +)</span>
+                            <span><strong>3r Q:</strong> (−, −)</span>
+                            <span><strong>4t Q:</strong> (+, −)</span>
+                        </div>
+                    </div>
+                </details>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * Aplicació Educativa Interactiva: El Pla Cartesià i Coordenades
+         * Dissenyada per a Matemàtiques Aplicades a les Ciències Socials I (MAP1 L4)
+         */
+
+        // --- ESTAT DE L'APLICACIÓ ---
+        const state = {
+            mode: 'place',          // 'place' (col·locar punt) | 'read' (llegir coordenades)
+            difficulty: 'all',      // 'q1' (només 1r quadrant [0,10]) | 'all' (tots [-10,10])
+            showQuadrants: false,   // Mostra les marques d'aigua I, II, III, IV
+            
+            // Punt actual de l'exercici
+            targetPoint: { x: 3, y: -4, label: 'P' },
+            
+            // Selecció de l'usuari en mode 'place'
+            selectedPoint: null,    // { x, y } o null
+            
+            // Punt sota el cursor (previsualització amb snap)
+            hoverPoint: null,       // { x, y } o null
+            
+            // Estat de resolució de l'exercici actual
+            answered: false,
+            isCorrect: false,
+            
+            // Estadístiques de la sessió
+            correctCount: 0,
+            totalCount: 0,
+            streak: 0,
+            goal: 10
+        };
+
+        // Lletres disponibles per anomenar els punts aleatoris
+        const POINT_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'M', 'N', 'P', 'Q', 'R', 'S'];
+
+        // --- REFERÈNCIES AL DOM ---
+        const canvas = document.getElementById('cartesian-canvas');
+        const ctx = canvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+
+        const cursorBadge = document.getElementById('cursor-coords-badge');
+        const toggleQuadrants = document.getElementById('toggle-quadrants');
+
+        const modePlaceBtn = document.getElementById('mode-place-btn');
+        const modeReadBtn = document.getElementById('mode-read-btn');
+        const diffQ1Btn = document.getElementById('diff-q1-btn');
+        const diffAllBtn = document.getElementById('diff-all-btn');
+
+        const panelModePlace = document.getElementById('panel-mode-place');
+        const panelModeRead = document.getElementById('panel-mode-read');
+
+        const targetPointDisplay = document.getElementById('target-point-display');
+        const selectedPreviewText = document.getElementById('selected-preview-text');
+        const btnCheckPlace = document.getElementById('btn-check-place');
+        const btnNextPlace = document.getElementById('btn-next-place');
+
+        const readPointLetter = document.getElementById('read-point-letter');
+        const readPointPrefix = document.getElementById('read-point-prefix');
+        const inputX = document.getElementById('input-x');
+        const inputY = document.getElementById('input-y');
+        const btnCheckRead = document.getElementById('btn-check-read');
+        const btnNextRead = document.getElementById('btn-next-read');
+
+        const feedbackBox = document.getElementById('feedback-box');
+        const feedbackIcon = document.getElementById('feedback-icon');
+        const feedbackTitle = document.getElementById('feedback-title');
+        const feedbackDesc = document.getElementById('feedback-desc');
+
+        const statCorrect = document.getElementById('stat-correct');
+        const statTotal = document.getElementById('stat-total');
+        const statStreak = document.getElementById('stat-streak');
+        const progressBar = document.getElementById('progress-bar');
+        const progressLabel = document.getElementById('progress-label');
+        const btnResetStats = document.getElementById('btn-reset-stats');
+
+        // --- PARÀMETRES GEOMÈTRICS DEL PLA CARTESIÀ ---
+        // Guardem les mètriques calculades en cada redimensionament per convertir píxels <-> coordenades
+        let metrics = {
+            width: 500,
+            height: 500,
+            padding: 38,
+            originX: 250,
+            originY: 250,
+            step: 20,
+            minVal: -10,
+            maxVal: 10
+        };
+
+        /**
+         * Ajusta la resolució del canvas tenint en compte el devicePixelRatio (pantalles Retina/4K)
+         * i calcula la posició exacta de l'origen i l'escala de cada unitat.
+         */
+        function resizeCanvas() {
+            const rect = canvasWrapper.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            metrics.width = rect.width;
+            metrics.height = rect.height;
+            metrics.padding = Math.max(32, Math.min(44, rect.width * 0.08));
+
+            const usableSize = Math.min(metrics.width, metrics.height) - metrics.padding * 2;
+            const totalUnits = metrics.maxVal - metrics.minVal; // 20 unitats (-10 a 10)
+            metrics.step = usableSize / totalUnits;
+
+            metrics.originX = metrics.width / 2;
+            metrics.originY = metrics.height / 2;
+
+            drawBoard();
+        }
+
+        /**
+         * Converteix coordenades matemàtiques (x, y) a coordenades de píxel dins el canvas
+         */
+        function mathToPixel(x, y) {
+            return {
+                px: metrics.originX + x * metrics.step,
+                py: metrics.originY - y * metrics.step // L'eix Y del canvas creix cap avall
+            };
+        }
+
+        /**
+         * Converteix píxels del canvas a coordenades enteres més properes (amb "snap")
+         * Retorna null si el cursor és fora del rang [-10, 10]
+         */
+        function pixelToMathSnap(px, py) {
+            const rawX = (px - metrics.originX) / metrics.step;
+            const rawY = (metrics.originY - py) / metrics.step;
+
+            const snapX = Math.round(rawX);
+            const snapY = Math.round(rawY);
+
+            // Comprovem que estigui dins els límits [-10, 10] i a una distància raonable de la intersecció
+            if (snapX < -10 || snapX > 10 || snapY < -10 || snapY > 10) {
+                return null;
+            }
+
+            const dist = Math.hypot(rawX - snapX, rawY - snapY);
+            if (dist > 0.48) {
+                return null;
+            }
+
+            return { x: snapX, y: snapY };
+        }
+
+        /**
+         * Dibuixa una fletxa neta a l'extrem d'un eix
+         */
+        function drawArrowhead(x, y, angle, size = 8) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-size, -size * 0.55);
+            ctx.lineTo(-size * 0.8, 0);
+            ctx.lineTo(-size, size * 0.55);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        /**
+         * Dibuixa una línia discontínua de projecció des d'un punt (x, y) fins als eixos X i Y
+         */
+        function drawProjectionLines(x, y, color) {
+            const pt = mathToPixel(x, y);
+            const axisXPt = mathToPixel(x, 0);
+            const axisYPt = mathToPixel(0, y);
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+
+            // Projecció vertical cap a l'eix X
+            if (y !== 0) {
+                ctx.beginPath();
+                ctx.moveTo(pt.px, pt.py);
+                ctx.lineTo(axisXPt.px, axisXPt.py);
+                ctx.stroke();
+
+                // Petita marca a l'eix X
+                ctx.setLineDash([]);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(axisXPt.px, axisXPt.py, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Projecció horitzontal cap a l'eix Y
+            if (x !== 0) {
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(pt.px, pt.py);
+                ctx.lineTo(axisYPt.px, axisYPt.py);
+                ctx.stroke();
+
+                // Petita marca a l'eix Y
+                ctx.setLineDash([]);
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(axisYPt.px, axisYPt.py, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Dibuixa un punt destacat al pla cartesià amb la seva etiqueta
+         */
+        function drawPoint(x, y, label, fillColor, strokeColor = '#ffffff', radius = 6.5, isGhost = false) {
+            const { px, py } = mathToPixel(x, y);
+
+            ctx.save();
+
+            // Halo exterior si no és fantasma
+            if (!isGhost) {
+                ctx.beginPath();
+                ctx.arc(px, py, radius + 4, 0, Math.PI * 2);
+                ctx.fillStyle = fillColor + '28'; // transparència suau
+                ctx.fill();
+            }
+
+            // Cercle principal del punt
+            ctx.beginPath();
+            ctx.arc(px, py, radius, 0, Math.PI * 2);
+            ctx.fillStyle = isGhost ? fillColor + '66' : fillColor;
+            ctx.fill();
+
+            ctx.lineWidth = 2.2;
+            ctx.strokeStyle = strokeColor;
+            ctx.stroke();
+
+            // Etiqueta de text del punt (posicionada intel·ligentment perquè no trepitgi els eixos)
+            if (label) {
+                ctx.font = '700 13px Inter, sans-serif';
+                const offsetX = x >= 8 ? -12 : 11;
+                const offsetY = y >= 8 ? 18 : -11;
+                const textAlign = x >= 8 ? 'right' : 'left';
+
+                ctx.textAlign = textAlign;
+                ctx.textBaseline = 'middle';
+
+                // Contorn blanc subtil per garantir llegibilitat sobre la graella
+                ctx.lineWidth = 3.5;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+                ctx.strokeText(label, px + offsetX, py + offsetY);
+
+                ctx.fillStyle = isGhost ? '#475569' : fillColor;
+                ctx.fillText(label, px + offsetX, py + offsetY);
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Funció principal de dibuix del pla cartesià complet
+         */
+        function drawBoard() {
+            const { width, height, originX, originY, step, minVal, maxVal } = metrics;
+
+            // 1. Neteja del fons
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+
+            // Ombrejat molt suau del 1r quadrant si l'usuari ha triat només 1r quadrant
+            if (state.difficulty === 'q1') {
+                const topRight = mathToPixel(10, 10);
+                ctx.fillStyle = 'rgba(99, 102, 241, 0.045)';
+                ctx.fillRect(originX, topRight.py, topRight.px - originX, originY - topRight.py);
+            }
+
+            // 2. Marques d'aigua dels quadrants (I, II, III, IV) si està activat
+            if (state.showQuadrants) {
+                ctx.save();
+                ctx.font = '800 ' + Math.max(18, step * 1.1) + 'px Inter, sans-serif';
+                ctx.fillStyle = 'rgba(148, 163, 184, 0.22)';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const q1 = mathToPixel(5, 5);
+                const q2 = mathToPixel(-5, 5);
+                const q3 = mathToPixel(-5, -5);
+                const q4 = mathToPixel(5, -5);
+
+                ctx.fillText('I', q1.px, q1.py);
+                ctx.fillText('II', q2.px, q2.py);
+                ctx.fillText('III', q3.px, q3.py);
+                ctx.fillText('IV', q4.px, q4.py);
+                ctx.restore();
+            }
+
+            const minPx = mathToPixel(minVal, maxVal);
+            const maxPx = mathToPixel(maxVal, minVal);
+
+            // 3. Línies de la graella (secundàries i destacades cada 5 unitats)
+            for (let i = minVal; i <= maxVal; i++) {
+                if (i === 0) continue; // Els eixos es dibuixen després amb més gruix
+
+                const posX = originX + i * step;
+                const posY = originY - i * step;
+                const isMajor = (i % 5 === 0);
+
+                ctx.strokeStyle = isMajor ? '#cbd5e1' : '#e2e8f0';
+                ctx.lineWidth = isMajor ? 1.2 : 0.8;
+
+                // Línia vertical
+                ctx.beginPath();
+                ctx.moveTo(posX, minPx.py);
+                ctx.lineTo(posX, maxPx.py);
+                ctx.stroke();
+
+                // Línia horitzontal
+                ctx.beginPath();
+                ctx.moveTo(minPx.px, posY);
+                ctx.lineTo(maxPx.px, posY);
+                ctx.stroke();
+            }
+
+            // 4. Eixos principals X (abscisses) i Y (ordenades)
+            const axisExtend = 14;
+            ctx.strokeStyle = '#1e293b';
+            ctx.fillStyle = '#1e293b';
+            ctx.lineWidth = 2;
+
+            // Eix X
+            ctx.beginPath();
+            ctx.moveTo(minPx.px - axisExtend * 0.4, originY);
+            ctx.lineTo(maxPx.px + axisExtend, originY);
+            ctx.stroke();
+            drawArrowhead(maxPx.px + axisExtend + 2, originY, 0, 8);
+
+            // Eix Y
+            ctx.beginPath();
+            ctx.moveTo(originX, maxPx.py + axisExtend * 0.4);
+            ctx.lineTo(originX, minPx.py - axisExtend);
+            ctx.stroke();
+            drawArrowhead(originX, minPx.py - axisExtend - 2, -Math.PI / 2, 8);
+
+            // Etiquetes dels eixos: X (abscisses) i Y (ordenades)
+            ctx.font = '700 13px Inter, sans-serif';
+            ctx.fillStyle = '#0f172a';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('X', maxPx.px + 6, originY - 7);
+
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Y', originX + 9, minPx.py - 10);
+
+            // 5. Numeració dels eixos (-10 a 10)
+            const fontSize = step < 18 ? 9 : 11;
+            ctx.font = `600 ${fontSize}px Inter, sans-serif`;
+            ctx.fillStyle = '#475569';
+
+            // Origen (0)
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'top';
+            ctx.fillText('0', originX - 5, originY + 5);
+
+            for (let i = minVal; i <= maxVal; i++) {
+                if (i === 0) continue;
+                // En pantalles molt petites, mostrem nombres parells o cada 2 unitats si no hi caben bé
+                if (step < 15 && i % 2 !== 0) continue;
+
+                const posX = originX + i * step;
+                const posY = originY - i * step;
+
+                // Marques (ticks) petites als eixos
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1.2;
+
+                // Tick eix X
+                ctx.beginPath();
+                ctx.moveTo(posX, originY - 3);
+                ctx.lineTo(posX, originY + 3);
+                ctx.stroke();
+
+                // Número eix X
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillText(i.toString(), posX, originY + 6);
+
+                // Tick eix Y
+                ctx.beginPath();
+                ctx.moveTo(originX - 3, posY);
+                ctx.lineTo(originX + 3, posY);
+                ctx.stroke();
+
+                // Número eix Y
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(i.toString(), originX - 7, posY);
+            }
+
+            // 6. Dibuix dels elements interactius segons el mode i estat actual
+            if (state.mode === 'place') {
+                // Previsualització suau sota el cursor mentre no s'ha comprovat
+                if (!state.answered && state.hoverPoint) {
+                    const isSameAsSelected = state.selectedPoint &&
+                        state.selectedPoint.x === state.hoverPoint.x &&
+                        state.selectedPoint.y === state.hoverPoint.y;
+
+                    if (!isSameAsSelected) {
+                        drawPoint(
+                            state.hoverPoint.x,
+                            state.hoverPoint.y,
+                            `(${state.hoverPoint.x}, ${state.hoverPoint.y})`,
+                            '#6366f1',
+                            '#ffffff',
+                            5.5,
+                            true
+                        );
+                    }
+                }
+
+                // Punt seleccionat per l'alumne
+                if (state.selectedPoint) {
+                    if (!state.answered) {
+                        drawPoint(
+                            state.selectedPoint.x,
+                            state.selectedPoint.y,
+                            `${state.targetPoint.label}(${state.selectedPoint.x}, ${state.selectedPoint.y})`,
+                            '#4f46e5'
+                        );
+                    } else {
+                        // Ja s'ha comprovat la resposta
+                        if (state.isCorrect) {
+                            drawProjectionLines(state.targetPoint.x, state.targetPoint.y, '#10b981');
+                            drawPoint(
+                                state.targetPoint.x,
+                                state.targetPoint.y,
+                                `${state.targetPoint.label}(${state.targetPoint.x}, ${state.targetPoint.y})`,
+                                '#10b981'
+                            );
+                        } else {
+                            // Mostrem el punt erroni de l'alumne en vermell i el correcte en verd
+                            drawPoint(
+                                state.selectedPoint.x,
+                                state.selectedPoint.y,
+                                `El teu: (${state.selectedPoint.x}, ${state.selectedPoint.y})`,
+                                '#ef4444'
+                            );
+                            drawProjectionLines(state.targetPoint.x, state.targetPoint.y, '#10b981');
+                            drawPoint(
+                                state.targetPoint.x,
+                                state.targetPoint.y,
+                                `Correcte: ${state.targetPoint.label}(${state.targetPoint.x}, ${state.targetPoint.y})`,
+                                '#10b981'
+                            );
+                        }
+                    }
+                }
+            } else if (state.mode === 'read') {
+                // Mode 2: Mostrem el punt problema al pla
+                const pointColor = !state.answered
+                    ? '#7c3aed'
+                    : (state.isCorrect ? '#10b981' : '#ef4444');
+
+                // Si ja ha respost, dibuixem les línies discontínues de projecció per reforç visual
+                if (state.answered) {
+                    drawProjectionLines(state.targetPoint.x, state.targetPoint.y, pointColor);
+                }
+
+                const displayLabel = state.answered
+                    ? `${state.targetPoint.label}(${state.targetPoint.x}, ${state.targetPoint.y})`
+                    : state.targetPoint.label;
+
+                drawPoint(state.targetPoint.x, state.targetPoint.y, displayLabel, pointColor);
+            }
+        }
+
+        // --- LÒGICA DELS EXERCICIS ---
+
+        /**
+         * Genera un enter aleatori entre min i max (ambdós inclosos)
+         */
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        /**
+         * Genera un nou repte diferent de l'anterior
+         */
+        function generateNewChallenge() {
+            const min = state.difficulty === 'q1' ? 0 : -10;
+            const max = 10;
+
+            let newX, newY;
+            do {
+                newX = randomInt(min, max);
+                newY = randomInt(min, max);
+            } while (newX === state.targetPoint.x && newY === state.targetPoint.y);
+
+            const randomLabel = POINT_LABELS[Math.floor(Math.random() * POINT_LABELS.length)];
+
+            state.targetPoint = { x: newX, y: newY, label: randomLabel };
+            state.selectedPoint = null;
+            state.answered = false;
+            state.isCorrect = false;
+
+            updateExerciseUI();
+            drawBoard();
+        }
+
+        /**
+         * Actualitza la interfície segons el mode i l'estat de l'exercici
+         */
+        function updateExerciseUI() {
+            // Amaguem el quadre de retroacció
+            feedbackBox.classList.add('hidden');
+
+            if (state.mode === 'place') {
+                panelModePlace.classList.remove('hidden');
+                panelModeRead.classList.add('hidden');
+
+                targetPointDisplay.textContent = `${state.targetPoint.label}(${state.targetPoint.x}, ${state.targetPoint.y})`;
+                selectedPreviewText.textContent = 'Fes clic o toca la intersecció exacta al pla.';
+                selectedPreviewText.className = 'text-xs sm:text-sm text-slate-600 mt-2';
+
+                btnCheckPlace.classList.remove('hidden');
+                btnCheckPlace.disabled = true;
+                btnNextPlace.classList.add('hidden');
+            } else {
+                panelModePlace.classList.add('hidden');
+                panelModeRead.classList.remove('hidden');
+
+                readPointLetter.textContent = state.targetPoint.label;
+                readPointPrefix.textContent = state.targetPoint.label;
+
+                inputX.value = '';
+                inputY.value = '';
+                inputX.disabled = false;
+                inputY.disabled = false;
+
+                btnCheckRead.classList.remove('hidden');
+                btnNextRead.classList.add('hidden');
+
+                // Posem el focus al camp X en escriptori per agilitzar la pràctica
+                if (window.innerWidth >= 768) {
+                    setTimeout(() => inputX.focus(), 50);
+                }
+            }
+        }
+
+        /**
+         * Mostra el missatge de retroacció educativa (correcte o incorrecte)
+         */
+        function showFeedback(isCorrect, customDesc) {
+            feedbackBox.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-900', 'bg-rose-50', 'border-rose-200', 'text-rose-900');
+
+            if (isCorrect) {
+                feedbackBox.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900');
+                feedbackIcon.className = 'w-7 h-7 rounded-full flex items-center justify-center shrink-0 font-bold text-base mt-0.5 bg-emerald-500 text-white';
+                feedbackIcon.textContent = '✓';
+                feedbackTitle.textContent = 'Molt bé! Resposta correcta';
+            } else {
+                feedbackBox.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-900');
+                feedbackIcon.className = 'w-7 h-7 rounded-full flex items-center justify-center shrink-0 font-bold text-base mt-0.5 bg-rose-500 text-white';
+                feedbackIcon.textContent = '✕';
+                feedbackTitle.textContent = 'Revisa les coordenades';
+            }
+
+            feedbackDesc.innerHTML = customDesc;
+        }
+
+        /**
+         * Construeix una explicació clara en català de com s'arriba al punt (x, y)
+         */
+        function buildExplanationText(pt) {
+            let horizText;
+            if (pt.x > 0) horizText = `<strong>${pt.x}</strong> unitat${pt.x === 1 ? '' : 's'} a la <strong>dreta</strong> sobre l'eix X`;
+            else if (pt.x < 0) horizText = `<strong>${Math.abs(pt.x)}</strong> unitat${Math.abs(pt.x) === 1 ? '' : 's'} a l'<strong>esquerra</strong> sobre l'eix X`;
+            else horizText = `sense moure'ns en horitzontal (<strong>x = 0</strong>, sobre l'eix Y)`;
+
+            let vertText;
+            if (pt.y > 0) vertText = `<strong>${pt.y}</strong> unitat${pt.y === 1 ? '' : 's'} cap <strong>amunt</strong> en paral·lel a l'eix Y`;
+            else if (pt.y < 0) vertText = `<strong>${Math.abs(pt.y)}</strong> unitat${Math.abs(pt.y) === 1 ? '' : 's'} cap <strong>avall</strong> en paral·lel a l'eix Y`;
+            else vertText = `sense pujar ni baixar (<strong>y = 0</strong>, sobre l'eix X)`;
+
+            return `El punt <strong>${pt.label}(${pt.x}, ${pt.y})</strong> se situa desplaçant-nos ${horizText} i després ${vertText}.`;
+        }
+
+        /**
+         * Actualitza el marcador d'encerts, ratxa i barra de progrés
+         */
+        function updateStats(isCorrect) {
+            state.totalCount++;
+            if (isCorrect) {
+                state.correctCount++;
+                state.streak++;
+            } else {
+                state.streak = 0;
+            }
+
+            statCorrect.textContent = state.correctCount;
+            statTotal.textContent = `/${state.totalCount}`;
+            statStreak.textContent = state.streak;
+
+            const pct = Math.min(100, Math.round((state.correctCount / state.goal) * 100));
+            progressBar.style.width = `${pct}%`;
+            progressLabel.textContent = `${pct}%`;
+        }
+
+        /**
+         * Comprova la resposta en el Mode 1 (Col·locar el punt)
+         */
+        function checkPlaceAnswer() {
+            if (!state.selectedPoint || state.answered) return;
+
+            state.answered = true;
+            state.isCorrect = (
+                state.selectedPoint.x === state.targetPoint.x &&
+                state.selectedPoint.y === state.targetPoint.y
+            );
+
+            updateStats(state.isCorrect);
+
+            const explanation = buildExplanationText(state.targetPoint);
+            if (state.isCorrect) {
+                showFeedback(true, explanation);
+            } else {
+                showFeedback(
+                    false,
+                    `Has marcat <strong>(${state.selectedPoint.x}, ${state.selectedPoint.y})</strong>. ${explanation}`
+                );
+            }
+
+            btnCheckPlace.classList.add('hidden');
+            btnNextPlace.classList.remove('hidden');
+            btnNextPlace.focus();
+
+            drawBoard();
+        }
+
+        /**
+         * Comprova la resposta en el Mode 2 (Llegir les coordenades)
+         */
+        function checkReadAnswer() {
+            if (state.answered) return;
+
+            const valX = inputX.value.trim();
+            const valY = inputY.value.trim();
+
+            if (valX === '' || valY === '' || isNaN(Number(valX)) || isNaN(Number(valY))) {
+                showFeedback(false, 'Introdueix dos nombres enters vàlids per a l\'abscissa (<strong>x</strong>) i l\'ordenada (<strong>y</strong>).');
+                return;
+            }
+
+            const numX = parseInt(valX, 10);
+            const numY = parseInt(valY, 10);
+
+            state.answered = true;
+            state.isCorrect = (numX === state.targetPoint.x && numY === state.targetPoint.y);
+
+            inputX.disabled = true;
+            inputY.disabled = true;
+
+            updateStats(state.isCorrect);
+
+            const explanation = buildExplanationText(state.targetPoint);
+            if (state.isCorrect) {
+                showFeedback(true, explanation);
+            } else {
+                showFeedback(
+                    false,
+                    `Has escrit <strong>(${numX}, ${numY})</strong>. ${explanation}`
+                );
+            }
+
+            btnCheckRead.classList.add('hidden');
+            btnNextRead.classList.remove('hidden');
+            btnNextRead.focus();
+
+            drawBoard();
+        }
+
+        // --- ESDEVENIMENTS D'INTERACCIÓ AMB EL CANVAS ---
+
+        function getCanvasPointerPos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            return {
+                px: clientX - rect.left,
+                py: clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener('pointermove', (evt) => {
+            const { px, py } = getCanvasPointerPos(evt);
+            const snapped = pixelToMathSnap(px, py);
+
+            if (snapped) {
+                cursorBadge.textContent = `Cursor: (${snapped.x}, ${snapped.y})`;
+            } else {
+                cursorBadge.textContent = 'Cursor: (—, —)';
+            }
+
+            if (state.mode === 'place' && !state.answered) {
+                const prevHover = state.hoverPoint;
+                const changed = (!prevHover && snapped) ||
+                                (prevHover && !snapped) ||
+                                (prevHover && snapped && (prevHover.x !== snapped.x || prevHover.y !== snapped.y));
+
+                if (changed) {
+                    state.hoverPoint = snapped;
+                    drawBoard();
+                }
+            }
+        });
+
+        canvas.addEventListener('pointerleave', () => {
+            cursorBadge.textContent = 'Cursor: (—, —)';
+            if (state.hoverPoint) {
+                state.hoverPoint = null;
+                drawBoard();
+            }
+        });
+
+        canvas.addEventListener('pointerdown', (evt) => {
+            if (state.mode !== 'place' || state.answered) return;
+
+            const { px, py } = getCanvasPointerPos(evt);
+            const snapped = pixelToMathSnap(px, py);
+
+            if (snapped) {
+                state.selectedPoint = snapped;
+                selectedPreviewText.innerHTML = `Punt marcat: <strong class="text-indigo-700 font-mono">(${snapped.x}, ${snapped.y})</strong>`;
+                btnCheckPlace.disabled = false;
+                drawBoard();
+            }
+        });
+
+        // --- ESDEVENIMENTS DELS BOTONS I CONTROLS ---
+
+        modePlaceBtn.addEventListener('click', () => {
+            if (state.mode === 'place') return;
+            state.mode = 'place';
+            modePlaceBtn.className = 'py-2.5 px-3 rounded-lg text-sm font-semibold transition-all bg-white text-indigo-700 shadow-sm';
+            modeReadBtn.className = 'py-2.5 px-3 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900';
+            canvas.classList.add('cursor-crosshair');
+            canvas.classList.remove('cursor-default');
+            generateNewChallenge();
+        });
+
+        modeReadBtn.addEventListener('click', () => {
+            if (state.mode === 'read') return;
+            state.mode = 'read';
+            modeReadBtn.className = 'py-2.5 px-3 rounded-lg text-sm font-semibold transition-all bg-white text-indigo-700 shadow-sm';
+            modePlaceBtn.className = 'py-2.5 px-3 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-slate-900';
+            canvas.classList.remove('cursor-crosshair');
+            canvas.classList.add('cursor-default');
+            generateNewChallenge();
+        });
+
+        diffQ1Btn.addEventListener('click', () => {
+            if (state.difficulty === 'q1') return;
+            state.difficulty = 'q1';
+            diffQ1Btn.className = 'py-2 px-3 rounded-xl text-xs sm:text-sm font-medium border transition-all border-indigo-600 bg-indigo-50/70 text-indigo-700 flex items-center justify-center gap-1.5';
+            diffAllBtn.className = 'py-2 px-3 rounded-xl text-xs sm:text-sm font-medium border transition-all border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1.5';
+            generateNewChallenge();
+        });
+
+        diffAllBtn.addEventListener('click', () => {
+            if (state.difficulty === 'all') return;
+            state.difficulty = 'all';
+            diffAllBtn.className = 'py-2 px-3 rounded-xl text-xs sm:text-sm font-medium border transition-all border-indigo-600 bg-indigo-50/70 text-indigo-700 flex items-center justify-center gap-1.5';
+            diffQ1Btn.className = 'py-2 px-3 rounded-xl text-xs sm:text-sm font-medium border transition-all border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1.5';
+            generateNewChallenge();
+        });
+
+        toggleQuadrants.addEventListener('change', (e) => {
+            state.showQuadrants = e.target.checked;
+            drawBoard();
+        });
+
+        btnCheckPlace.addEventListener('click', checkPlaceAnswer);
+        btnNextPlace.addEventListener('click', generateNewChallenge);
+
+        btnCheckRead.addEventListener('click', checkReadAnswer);
+        btnNextRead.addEventListener('click', generateNewChallenge);
+
+        // Permetre prémer Enter als camps numèrics per comprovar o avançar
+        [inputX, inputY].forEach((inp) => {
+            inp.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!state.answered) {
+                        checkReadAnswer();
+                    } else {
+                        generateNewChallenge();
+                    }
+                }
+            });
+        });
+
+        btnResetStats.addEventListener('click', () => {
+            state.correctCount = 0;
+            state.totalCount = 0;
+            state.streak = 0;
+            statCorrect.textContent = '0';
+            statTotal.textContent = '/0';
+            statStreak.textContent = '0';
+            progressBar.style.width = '0%';
+            progressLabel.textContent = '0%';
+            generateNewChallenge();
+        });
+
+        // Redimensionament adaptatiu
+        window.addEventListener('resize', resizeCanvas);
+
+        // Inicialització en carregar la pàgina
+        window.onload = function () {
+            resizeCanvas();
+            generateNewChallenge();
+        };
+    </script>
+</body>
+</html>
